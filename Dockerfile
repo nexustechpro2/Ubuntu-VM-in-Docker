@@ -42,23 +42,9 @@ RUN mkdir -p /root/.mozilla/firefox/default && \
     printf 'user_pref("browser.tabs.remote.autostart", false);\nuser_pref("dom.ipc.processCount", 1);\nuser_pref("media.peerconnection.enabled", false);\nuser_pref("gfx.webrender.all", false);\nuser_pref("layers.acceleration.disabled", true);\n' \
     > /root/.mozilla/firefox/default/user.js
 
-# Generate VNC password using python3 - no vncpasswd needed
 RUN mkdir -p /root/.vnc && \
-    python3 -c "
-import struct
-passwd = '1234'.ljust(8)[:8]
-key = [23,82,107,6,35,78,88,7]
-result = []
-for i in range(8):
-    c = ord(passwd[i])
-    k = key[i]
-    b = 0
-    for j in range(8):
-        b = (b << 1) | (c & 1)
-        c >>= 1
-    result.append(b ^ k)
-open('/root/.vnc/passwd','wb').write(bytes(result))
-" && chmod 600 /root/.vnc/passwd
+    python3 -c "p='1234'.ljust(8)[:8];k=[23,82,107,6,35,78,88,7];r=bytes([int('{:08b}'.format(ord(p[i]))[::-1],2)^k[i] for i in range(8)]);open('/root/.vnc/passwd','wb').write(r)" && \
+    chmod 600 /root/.vnc/passwd
 
 RUN printf '#!/bin/bash\nunset SESSION_MANAGER\nunset DBUS_SESSION_BUS_ADDRESS\nexec startxfce4\n' \
     > /root/.vnc/xstartup && \
