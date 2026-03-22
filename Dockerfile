@@ -16,12 +16,16 @@ RUN apt-get update && apt-get install -y \
     git \
     sudo \
     nano \
+    gnupg \
     software-properties-common \
     --no-install-recommends
 
-RUN add-apt-repository ppa:mozillateam/ppa -y
-
-RUN printf 'Package: *\nPin: release o=LP-PPA-mozillateam\nPin-Priority: 1001\n' \
+# Add Mozilla PPA manually
+RUN curl -fsSL https://keyserver.ubuntu.com/pks/lookup?op=get\&search=0x738BEB9321D1AAEC13EA9391AEBDF4819BE21867 \
+    | gpg --dearmor -o /etc/apt/trusted.gpg.d/mozillateam-ppa.gpg && \
+    echo "deb https://ppa.launchpadcontent.net/mozillateam/ppa/ubuntu jammy main" \
+    > /etc/apt/sources.list.d/mozillateam.list && \
+    printf 'Package: *\nPin: release o=LP-PPA-mozillateam\nPin-Priority: 1001\n' \
     > /etc/apt/preferences.d/mozilla-firefox
 
 RUN apt-get update && apt-get install -y --allow-downgrades firefox
