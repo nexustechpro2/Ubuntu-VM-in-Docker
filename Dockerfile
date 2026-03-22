@@ -35,22 +35,21 @@ RUN curl -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x738BEB93
     apt-get install -y --allow-downgrades firefox && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Firefox single process mode - no shm needed
 RUN mkdir -p /root/.mozilla/firefox/default && \
     printf '[Profile0]\nName=default\nIsRelative=1\nPath=default\nDefault=1\n\n[General]\nStartWithLastProfile=1\nVersion=2\n' \
     > /root/.mozilla/firefox/profiles.ini && \
     printf 'user_pref("browser.tabs.remote.autostart", false);\nuser_pref("dom.ipc.processCount", 1);\nuser_pref("media.peerconnection.enabled", false);\nuser_pref("gfx.webrender.all", false);\nuser_pref("layers.acceleration.disabled", true);\n' \
     > /root/.mozilla/firefox/default/user.js
 
-# TigerVNC setup
-RUN mkdir -p /root/.vnc && \
-    echo "1234" | vncpasswd -f > /root/.vnc/passwd && \
-    chmod 600 /root/.vnc/passwd && \
-    printf '#!/bin/bash\nunset SESSION_MANAGER\nunset DBUS_SESSION_BUS_ADDRESS\nexec startxfce4\n' \
+RUN mkdir -p /root/.vnc
+
+RUN echo "1234" | vncpasswd -f > /root/.vnc/passwd && \
+    chmod 600 /root/.vnc/passwd
+
+RUN printf '#!/bin/bash\nunset SESSION_MANAGER\nunset DBUS_SESSION_BUS_ADDRESS\nexec startxfce4\n' \
     > /root/.vnc/xstartup && \
     chmod +x /root/.vnc/xstartup
 
-# noVNC full height
 RUN printf '<!DOCTYPE html>\n\
 <html>\n\
 <head><title>Desktop</title><meta charset="utf-8"/>\n\
