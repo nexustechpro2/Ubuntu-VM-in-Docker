@@ -42,9 +42,7 @@ RUN mkdir -p /root/.mozilla/firefox/default && \
     printf 'user_pref("browser.tabs.remote.autostart", false);\nuser_pref("dom.ipc.processCount", 1);\nuser_pref("media.peerconnection.enabled", false);\nuser_pref("gfx.webrender.all", false);\nuser_pref("layers.acceleration.disabled", true);\n' \
     > /root/.mozilla/firefox/default/user.js
 
-RUN mkdir -p /root/.vnc && \
-    python3 -c "p='1234'.ljust(8)[:8];k=[23,82,107,6,35,78,88,7];r=bytes([int('{:08b}'.format(ord(p[i]))[::-1],2)^k[i] for i in range(8)]);open('/root/.vnc/passwd','wb').write(r)" && \
-    chmod 600 /root/.vnc/passwd
+RUN mkdir -p /root/.vnc
 
 RUN printf '#!/bin/bash\nunset SESSION_MANAGER\nunset DBUS_SESSION_BUS_ADDRESS\nexec startxfce4\n' \
     > /root/.vnc/xstartup && \
@@ -55,7 +53,7 @@ RUN printf '<!DOCTYPE html>\n\
 <head><title>Desktop</title><meta charset="utf-8"/>\n\
 <style>*{margin:0;padding:0}html,body{width:100%%;height:100%%;background:#000}iframe{width:100%%;height:100vh;border:none}</style>\n\
 </head>\n\
-<body><iframe src="/vnc.html?autoconnect=true&reconnect=true&password=1234&resize=scale"></iframe></body>\n\
+<body><iframe src="/vnc.html?autoconnect=true&reconnect=true&resize=scale"></iframe></body>\n\
 </html>\n' > /usr/share/novnc/index.html
 
 RUN printf '#!/bin/bash\n\
@@ -63,7 +61,7 @@ mkdir -p /run/dbus\n\
 dbus-daemon --system --fork 2>/dev/null || true\n\
 eval $(dbus-launch --sh-syntax)\n\
 export DBUS_SESSION_BUS_ADDRESS\n\
-vncserver :1 -geometry ${RESOLUTION} -depth 24 -localhost no\n\
+vncserver :1 -geometry ${RESOLUTION} -depth 24 -localhost no -SecurityTypes None\n\
 websockify --web=/usr/share/novnc 6080 localhost:5901 &\n\
 tail -f /root/.vnc/*.log\n' > /start.sh && chmod +x /start.sh
 
