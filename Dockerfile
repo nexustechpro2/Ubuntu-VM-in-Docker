@@ -57,13 +57,14 @@ RUN printf '<!DOCTYPE html>\n\
 </html>\n' > /usr/share/novnc/index.html
 
 RUN printf '#!/bin/bash\n\
-mkdir -p /run/dbus\n\
+mkdir -p /run/dbus /root/.vnc\n\
 dbus-daemon --system --fork 2>/dev/null || true\n\
 eval $(dbus-launch --sh-syntax)\n\
 export DBUS_SESSION_BUS_ADDRESS\n\
-vncserver :1 -geometry ${RESOLUTION} -depth 24 -localhost no -SecurityTypes None\n\
+vncserver :1 -geometry ${RESOLUTION} -depth 24 -localhost no -SecurityTypes None --I-KNOW-THIS-IS-INSECURE\n\
+sleep 2\n\
 websockify --web=/usr/share/novnc 6080 localhost:5901 &\n\
-tail -f /root/.vnc/*.log\n' > /start.sh && chmod +x /start.sh
+tail -f /root/.vnc/bb7bf5747959:1.log 2>/dev/null || tail -f /dev/null\n' > /start.sh && chmod +x /start.sh
 
 EXPOSE 5901 6080
 
