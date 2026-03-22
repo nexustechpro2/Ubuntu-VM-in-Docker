@@ -3,6 +3,8 @@ FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 ENV DISPLAY=:1
 ENV RESOLUTION=1280x800
+ENV MOZ_DISABLE_CONTENT_SANDBOX=1
+ENV MOZ_NO_REMOTE=1
 
 RUN apt-get update && apt-get install -y \
     xfce4 \
@@ -33,23 +35,19 @@ RUN curl -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x738BEB93
     apt-get install -y --allow-downgrades firefox && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Shared memory fix for Firefox baked into profile
-RUN mkdir -p /root/.mozilla/firefox && \
+# Firefox single process mode - no shm needed
+RUN mkdir -p /root/.mozilla/firefox/default && \
     printf '[Profile0]\nName=default\nIsRelative=1\nPath=default\nDefault=1\n\n[General]\nStartWithLastProfile=1\nVersion=2\n' \
     > /root/.mozilla/firefox/profiles.ini && \
-    mkdir -p /root/.mozilla/firefox/default && \
-    printf 'user_pref("media.peerconnection.enabled", false);\nuser_pref("browser.tabs.remote.autostart", false);\nuser_pref("dom.ipc.processCount", 1);\n' \
+    printf 'user_pref("browser.tabs.remote.autostart", false);\nuser_pref("dom.ipc.processCount", 1);\nuser_pref("media.peerconnection.enabled", false);\nuser_pref("gfx.webrender.all", false);\nuser_pref("layers.acceleration.disabled", true);\n' \
     > /root/.mozilla/firefox/default/user.js
 
 # TigerVNC setup
 RUN mkdir -p /root/.vnc && \
     echo "1234" | vncpasswd -f > /root/.vnc/passwd && \
-    chmod 600 /root/.vnc/passwd
-
-RUN printf '#!/bin/bash\n\
-unset SESSION_MANAGER\n\
-unset DBUS_SESSION_BUS_ADDRESS\n\
-exec startxfce4\n' > /root/.vnc/xstartup && \
+    chmod 600 /root/.vnc/passwd && \
+    printf '#!/bin/bash\nunset SESSION_MANAGER\nunset DBUS_SESSION_BUS_ADDRESS\nexec startxfce4\n' \
+    > /root/.vnc/xstartup && \
     chmod +x /root/.vnc/xstartup
 
 # noVNC full height
@@ -63,8 +61,6 @@ RUN printf '<!DOCTYPE html>\n\
 
 RUN printf '#!/bin/bash\n\
 mkdir -p /run/dbus\n\
-mkdir -p /dev/shm\n\
-mount -t tmpfs -o size=512m tmpfs /dev/shm 2>/dev/null || true\n\
 dbus-daemon --system --fork 2>/dev/null || true\n\
 eval $(dbus-launch --sh-syntax)\n\
 export DBUS_SESSION_BUS_ADDRESS\n\
