@@ -1,75 +1,52 @@
-FROM ubuntu:22.04
+FROM --platform=linux/amd64 ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
-ENV DISPLAY=:1
-ENV RESOLUTION=1280x800
 ENV MOZ_DISABLE_CONTENT_SANDBOX=1
 ENV MOZ_NO_REMOTE=1
 ENV MOZ_DISABLE_AUTO_SAFE_MODE=1
-ENV TMPDIR=/tmp
 
-RUN apt-get update && apt-get install -y \
-    xfce4 \
-    xfce4-terminal \
-    tigervnc-standalone-server \
-    tigervnc-common \
-    novnc \
-    websockify \
-    dbus-x11 \
-    dbus \
-    gnupg \
-    curl \
-    wget \
-    git \
-    nano \
-    sudo \
-    fonts-liberation \
-    xfonts-base \
-    python3 \
-    --no-install-recommends
+RUN apt update -y && apt install --no-install-recommends -y \
+    xfce4 xfce4-goodies tigervnc-standalone-server novnc websockify \
+    sudo xterm init systemd snapd vim net-tools curl wget git tzdata openssl
 
-RUN curl -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x738BEB9321D1AAEC13EA9391AEBDF4819BE21867" \
-    | gpg --dearmor -o /etc/apt/trusted.gpg.d/mozillateam-ppa.gpg && \
-    echo "deb https://ppa.launchpadcontent.net/mozillateam/ppa/ubuntu jammy main" \
-    > /etc/apt/sources.list.d/mozillateam.list && \
-    printf 'Package: *\nPin: release o=LP-PPA-mozillateam\nPin-Priority: 1001\n' \
-    > /etc/apt/preferences.d/mozilla-firefox && \
-    apt-get update && \
-    apt-get install -y --allow-downgrades firefox && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN apt update -y && apt install -y dbus-x11 x11-utils x11-xserver-utils x11-apps
 
+RUN apt install -y software-properties-common
+
+RUN add-apt-repository ppa:mozillateam/ppa -y
+
+RUN echo 'Package: *' >> /etc/apt/preferences.d/mozilla-firefox && \
+    echo 'Pin: release o=LP-PPA-mozillateam' >> /etc/apt/preferences.d/mozilla-firefox && \
+    echo 'Pin-Priority: 1001' >> /etc/apt/preferences.d/mozilla-firefox && \
+    echo 'Unattended-Upgrade::Allowed-Origins:: "LP-PPA-mozillateam:jammy";' | tee /etc/apt/apt.conf.d/51unattended-upgrades-firefox
+
+RUN apt update -y && apt install -y firefox
+
+RUN apt update -y && apt install -y xubuntu-icon-theme
+
+# Firefox profile - single process, no sandbox, no crash loop
 RUN mkdir -p /root/.mozilla/firefox/default && \
     printf '[Profile0]\nName=default\nIsRelative=1\nPath=default\nDefault=1\n\n[General]\nStartWithLastProfile=1\nVersion=2\n' \
     > /root/.mozilla/firefox/profiles.ini && \
-    printf 'user_pref("browser.tabs.remote.autostart", false);\nuser_pref("dom.ipc.processCount", 1);\nuser_pref("media.peerconnection.enabled", false);\nuser_pref("gfx.webrender.all", false);\nuser_pref("gfx.webrender.enabled", false);\nuser_pref("layers.acceleration.disabled", true);\nuser_pref("toolkit.startup.max_resumed_crashes", -1);\nuser_pref("browser.sessionstore.resume_from_crash", false);\nuser_pref("browser.shell.checkDefaultBrowser", false);\nuser_pref("datareporting.healthreport.uploadEnabled", false);\nuser_pref("toolkit.telemetry.enabled", false);\n' \
+    printf 'user_pref("browser.tabs.remote.autostart", false);\n\
+user_pref("dom.ipc.processCount", 1);\n\
+user_pref("media.peerconnection.enabled", false);\n\
+user_pref("gfx.webrender.all", false);\n\
+user_pref("gfx.webrender.enabled", false);\n\
+user_pref("layers.acceleration.disabled", true);\n\
+user_pref("toolkit.startup.max_resumed_crashes", -1);\n\
+user_pref("browser.sessionstore.resume_from_crash", false);\n\
+user_pref("browser.shell.checkDefaultBrowser", false);\n\
+user_pref("datareporting.healthreport.uploadEnabled", false);\n\
+user_pref("toolkit.telemetry.enabled", false);\n' \
     > /root/.mozilla/firefox/default/user.js
 
-RUN mkdir -p /root/.vnc && \
-    printf '#!/bin/bash\nunset SESSION_MANAGER\nunset DBUS_SESSION_BUS_ADDRESS\nexec startxfce4\n' \
-    > /root/.vnc/xstartup && \
-    chmod +x /root/.vnc/xstartup
+RUN touch /root/.Xauthority
 
-RUN printf '<!DOCTYPE html>\n\
-<html>\n\
-<head><title>Desktop</title><meta charset="utf-8"/>\n\
-<style>*{margin:0;padding:0}html,body{width:100%%;height:100%%;background:#000}iframe{width:100%%;height:100vh;border:none}</style>\n\
-</head>\n\
-<body><iframe src="/vnc.html?autoconnect=true&reconnect=true&resize=scale"></iframe></body>\n\
-</html>\n' > /usr/share/novnc/index.html
+EXPOSE 5901
+EXPOSE 6080
 
-RUN printf '#!/bin/bash\n\
-mkdir -p /run/dbus /root/.vnc /tmp/shm\n\
-# Redirect shm to /tmp at runtime (cant do at build time)\n\
-chmod 1777 /tmp/shm\n\
-export TMPDIR=/tmp\n\
-dbus-daemon --system --fork 2>/dev/null || true\n\
-eval $(dbus-launch --sh-syntax)\n\
-export DBUS_SESSION_BUS_ADDRESS\n\
-vncserver :1 -geometry ${RESOLUTION} -depth 24 -localhost no -SecurityTypes None --I-KNOW-THIS-IS-INSECURE\n\
-sleep 2\n\
-websockify --web=/usr/share/novnc 6080 localhost:5901 &\n\
-tail -f /dev/null\n' > /start.sh && chmod +x /start.sh
-
-EXPOSE 5901 6080
-
-CMD ["/start.sh"]
+CMD bash -c "vncserver -localhost no -SecurityTypes None -geometry 1024x768 --I-KNOW-THIS-IS-INSECURE && \
+    openssl req -new -subj '/C=JP' -x509 -days 365 -nodes -out self.pem -keyout self.pem && \
+    websockify -D --web=/usr/share/novnc/ --cert=self.pem 6080 localhost:5901 && \
+    tail -f /dev/null"
