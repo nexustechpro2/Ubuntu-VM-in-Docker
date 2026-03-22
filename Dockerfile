@@ -17,27 +17,22 @@ RUN apt-get update && apt-get install -y \
     sudo \
     nano \
     software-properties-common \
-    --no-install-recommends && \
-    add-apt-repository ppa:mozillateam/ppa -y && \
-    echo 'Package: *\nPin: release o=LP-PPA-mozillateam\nPin-Priority: 1001' \
-    > /etc/apt/preferences.d/mozilla-firefox && \
-    apt-get update && \
-    apt-get install -y --allow-downgrades firefox && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    --no-install-recommends
+
+RUN add-apt-repository ppa:mozillateam/ppa -y
+
+RUN printf 'Package: *\nPin: release o=LP-PPA-mozillateam\nPin-Priority: 1001\n' \
+    > /etc/apt/preferences.d/mozilla-firefox
+
+RUN apt-get update && apt-get install -y --allow-downgrades firefox
+
+RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /root/.vnc && \
     x11vnc -storepasswd 1234 /root/.vnc/passwd
 
-RUN echo '#!/bin/bash\n\
-Xvfb :1 -screen 0 ${RESOLUTION} &\n\
-sleep 1\n\
-startxfce4 &\n\
-sleep 2\n\
-x11vnc -display :1 -rfbauth /root/.vnc/passwd -forever -rfbport 5900 -shared &\n\
-websockify --web=/usr/share/novnc 6080 localhost:5900 &\n\
-wait' > /start.sh && \
-    chmod +x /start.sh
+RUN printf '#!/bin/bash\nXvfb :1 -screen 0 ${RESOLUTION} &\nsleep 1\nstartxfce4 &\nsleep 2\nx11vnc -display :1 -rfbauth /root/.vnc/passwd -forever -rfbport 5900 -shared &\nwebsockify --web=/usr/share/novnc 6080 localhost:5900 &\nwait\n' \
+    > /start.sh && chmod +x /start.sh
 
 EXPOSE 5900 6080
 
