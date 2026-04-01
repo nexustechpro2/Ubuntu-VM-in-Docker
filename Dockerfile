@@ -2,6 +2,10 @@ FROM --platform=linux/amd64 ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LIBGL_ALWAYS_SOFTWARE=1
+ENV MOZ_DISABLE_CONTENT_SANDBOX=1
+ENV MOZ_DISABLE_GMP_SANDBOX=1
+ENV MOZ_DISABLE_NPAPI_SANDBOX=1
+ENV MOZ_DISABLE_SANDBOX=1
 
 # Install apt-utils first to suppress warnings
 RUN apt update -y && apt install -y apt-utils
@@ -28,7 +32,7 @@ RUN echo 'Unattended-Upgrade::Allowed-Origins:: "LP-PPA-mozillateam:jammy";' | \
 RUN apt update -y && apt install -y firefox
 RUN apt update -y && apt install -y xubuntu-icon-theme
 
-# Disable GPU/hardware acceleration in Firefox (no GPU in cloud containers)
+# Disable GPU/hardware acceleration + sandbox in Firefox
 RUN mkdir -p /root/.mozilla/firefox/default && \
     echo 'user_pref("layers.acceleration.disabled", true);' >> /root/.mozilla/firefox/default/user.js && \
     echo 'user_pref("gfx.webrender.all", false);' >> /root/.mozilla/firefox/default/user.js && \
@@ -36,17 +40,15 @@ RUN mkdir -p /root/.mozilla/firefox/default && \
     echo 'user_pref("browser.tabs.remote.autostart", false);' >> /root/.mozilla/firefox/default/user.js && \
     echo 'user_pref("dom.ipc.processCount", 1);' >> /root/.mozilla/firefox/default/user.js && \
     echo 'user_pref("dom.ipc.processCount.web", 1);' >> /root/.mozilla/firefox/default/user.js && \
-    echo 'user_pref("media.ffmpeg.vaapi.enabled", false);' >> /root/.mozilla/firefox/default/user.js
+    echo 'user_pref("media.ffmpeg.vaapi.enabled", false);' >> /root/.mozilla/firefox/default/user.js && \
+    echo 'user_pref("security.sandbox.content.level", 0);' >> /root/.mozilla/firefox/default/user.js && \
+    echo 'user_pref("security.sandbox.gpu.level", 0);' >> /root/.mozilla/firefox/default/user.js
 
 RUN touch /root/.Xauthority
 
 EXPOSE 5901
 EXPOSE 6080
 
-# At runtime:
-# 1. Create a large /tmp/shm directory and bind-mount it over /dev/shm
-# 2. If mount fails (no permission), at least /tmp/shm is used as fallback via env var
-# 3. Tell Firefox to use /tmp/shm for shared memory via env var
 CMD bash -c "\
     mkdir -p /tmp/shm && chmod 1777 /tmp/shm && \
     (mount --bind /tmp/shm /dev/shm 2>/dev/null || true) && \
