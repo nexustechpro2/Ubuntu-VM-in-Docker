@@ -28,11 +28,6 @@ RUN echo 'Unattended-Upgrade::Allowed-Origins:: "LP-PPA-mozillateam:jammy";' | \
 RUN apt update -y && apt install -y firefox
 RUN apt update -y && apt install -y xubuntu-icon-theme
 
-# Workaround for /dev/shm being too small and non-remountable on Render:
-# Remove /dev/shm and replace it with a symlink to /tmp/shm
-# Firefox will write shared memory to /tmp instead, which has no size limit
-RUN rm -rf /dev/shm && ln -s /tmp/shm /dev/shm
-
 # Disable GPU/hardware acceleration in Firefox (no GPU in cloud containers)
 RUN mkdir -p /root/.mozilla/firefox/default && \
     echo 'user_pref("layers.acceleration.disabled", true);' >> /root/.mozilla/firefox/default/user.js && \
@@ -45,8 +40,13 @@ RUN touch /root/.Xauthority
 EXPOSE 5901
 EXPOSE 6080
 
-# Create /tmp/shm at startup (since /tmp is cleared on boot), then launch VNC + noVNC
-CMD bash -c "mkdir -p /tmp/shm && chmod 1777 /tmp/shm && \
+# At runtime:
+# 1. Create a large /tmp/shm directory and bind-mount it over /dev/shm
+# 2. If mount fails (no permission), at least /tmp/shm is used as fallback via env var
+# 3. Tell Firefox to use /tmp/shm for shared memory via env var
+CMD bash -c "\
+    mkdir -p /tmp/shm && chmod 1777 /tmp/shm && \
+    (mount --bind /tmp/shm /dev/shm 2>/dev/null || true) && \
     vncserver -localhost no -SecurityTypes None -geometry 1024x768 --I-KNOW-THIS-IS-INSECURE && \
     openssl req -new -subj '/C=JP' -x509 -days 365 -nodes -out self.pem -keyout self.pem && \
     websockify -D --web=/usr/share/novnc/ --cert=self.pem 6080 localhost:5901 && \
