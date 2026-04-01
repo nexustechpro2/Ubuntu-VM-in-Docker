@@ -33,7 +33,10 @@ RUN mkdir -p /root/.mozilla/firefox/default && \
     echo 'user_pref("layers.acceleration.disabled", true);' >> /root/.mozilla/firefox/default/user.js && \
     echo 'user_pref("gfx.webrender.all", false);' >> /root/.mozilla/firefox/default/user.js && \
     echo 'user_pref("media.hardware-video-decoding.enabled", false);' >> /root/.mozilla/firefox/default/user.js && \
-    echo 'user_pref("browser.tabs.remote.autostart", false);' >> /root/.mozilla/firefox/default/user.js
+    echo 'user_pref("browser.tabs.remote.autostart", false);' >> /root/.mozilla/firefox/default/user.js && \
+    echo 'user_pref("dom.ipc.processCount", 1);' >> /root/.mozilla/firefox/default/user.js && \
+    echo 'user_pref("dom.ipc.processCount.web", 1);' >> /root/.mozilla/firefox/default/user.js && \
+    echo 'user_pref("media.ffmpeg.vaapi.enabled", false);' >> /root/.mozilla/firefox/default/user.js
 
 RUN touch /root/.Xauthority
 
